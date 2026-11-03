@@ -10,6 +10,7 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -198,10 +199,23 @@ class PelicanThermostatEntity(CoordinatorEntity, ClimateEntity):
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         pelican_status = PRESET_MODE_MAP_REVERSE.get(preset_mode)
-        if pelican_status:
-            # Note: Setting status might not be directly supported by API
-            # This would require further investigation of API capabilities
-            _LOGGER.warning("Setting preset mode is not yet fully implemented")
+        if pelican_status is None:
+            raise ServiceValidationError(f"Unsupported preset mode: {preset_mode}")
+
+        # Vacant hands control to the Pelican's own Vacation schedule;
+        # Occupied returns it to the normal schedule.
+        if not await self.coordinator.set_status(pelican_status):
+            raise HomeAssistantError(f"Pelican rejected setting status to {pelican_status}")
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the Vacant setpoints alongside the active ones."""
+        data = self.coordinator.data or {}
+        return {
+            "vacant_heat_setting": data.get("vacant_heat_setting"),
+            "vacant_cool_setting": data.get("vacant_cool_setting"),
+        }
 
     @property
     def hvac_action(self) -> HVACAction | None:

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 import xml.etree.ElementTree as ET
 from datetime import timedelta
 from typing import Any
@@ -12,7 +11,6 @@ import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util import dt as dt_util
 
 from .const import (
     API_OBJECT,
@@ -29,11 +27,8 @@ from .const import (
     DEFAULT_BASE_URL,
     DEFAULT_POLL_INTERVAL,
     OBJECT_THERMOSTAT,
-    OBJECT_THERMOSTAT_SCHEDULE,
     REQUEST_GET,
     REQUEST_SET,
-    SCHEDULE_DAY_VACATION,
-    VACATION_SCHEDULE_REFRESH_SECONDS,
     VALUE_ANTICIPATION_DEGREES,
     VALUE_AUX_STATUS,
     VALUE_CALIBRATION_OFFSET,
@@ -71,7 +66,6 @@ from .const import (
     VALUE_TEMPERATURE_FORMAT,
     VALUE_VERSION,
 )
-from .vacation import active_vacation_entry, parse_vacation_schedule
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,9 +92,6 @@ class PelicanThermostatCoordinator(DataUpdateCoordinator):
         self.username = entry.data[CONF_USERNAME]
         self.password = entry.data[CONF_PASSWORD]
         self.thermostat_name = entry.data[CONF_THERMOSTAT_NAME]
-        # Vacation (Vacant) schedule cache; None until the first successful read
-        self._vacation_entries: list[dict[str, Any]] | None = None
-        self._vacation_fetched_at = 0.0
         _LOGGER.info("Coordinator initialized with update_interval: %s", self.update_interval)
 
     def update_poll_interval(self) -> None:
@@ -120,11 +111,8 @@ class PelicanThermostatCoordinator(DataUpdateCoordinator):
         try:
             async with asyncio.timeout(15):  # Increased timeout for offline thermostats
                 result = await self._fetch_thermostat_data()
-            _LOGGER.info("Successfully polled thermostat data")
-            if result:
-                await self._update_vacation_schedule()
-                result.update(self._vacation_data())
-            return result
+                _LOGGER.info("Successfully polled thermostat data")
+                return result
         except asyncio.TimeoutError:
             _LOGGER.warning("Timeout fetching thermostat data (thermostat may be offline)")
             # Return last known data instead of failing completely
@@ -178,60 +166,6 @@ class PelicanThermostatCoordinator(DataUpdateCoordinator):
                 result = self._parse_thermostat_data(data)
                 
                 return result
-
-    async def _update_vacation_schedule(self, force: bool = False) -> None:
-        """Re-read the Vacation schedule if the cached copy is stale.
-
-        Failures are logged and leave the previous copy in place so a schedule
-        hiccup never fails the main poll.
-        """
-        if (
-            not force
-            and self._vacation_entries is not None
-            and time.monotonic() - self._vacation_fetched_at < VACATION_SCHEDULE_REFRESH_SECONDS
-        ):
-            return
-
-        params = {
-            API_USERNAME: self.username,
-            API_PASSWORD: self.password,
-            API_REQUEST: REQUEST_GET,
-            API_OBJECT: OBJECT_THERMOSTAT_SCHEDULE,
-            API_SELECTION: f"name:{self.thermostat_name};dayOfWeek:{SCHEDULE_DAY_VACATION};",
-            API_VALUE: "setTime;startTime;system;heatSetting;coolSetting;fan",
-        }
-
-        try:
-            async with asyncio.timeout(15):
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(self.base_url, params=params) as response:
-                        response.raise_for_status()
-                        data = await response.text()
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("Could not read Vacation schedule: %s", err)
-            return
-
-        _LOGGER.debug("Vacation schedule response: %s", data)
-        entries = parse_vacation_schedule(data)
-        if entries is None:
-            _LOGGER.warning("Vacation schedule request was not successful: %s", data)
-            return
-
-        self._vacation_entries = entries
-        self._vacation_fetched_at = time.monotonic()
-
-    def _vacation_data(self) -> dict[str, Any]:
-        """Return the Vacant setpoints in effect now, from the cached schedule."""
-        entries = self._vacation_entries
-        if entries is None:
-            return {}
-        entry = active_vacation_entry(entries, dt_util.now().time()) or {}
-        return {
-            "vacant_heat_setting": entry.get("heat_setting"),
-            "vacant_cool_setting": entry.get("cool_setting"),
-            "vacant_system": entry.get("system"),
-            "vacation_schedule": entries,
-        }
 
     def _parse_thermostat_data(self, data: str) -> dict[str, Any]:
         """Parse thermostat data from API response."""

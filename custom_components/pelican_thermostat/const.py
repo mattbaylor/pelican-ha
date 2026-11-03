@@ -26,13 +26,6 @@ REQUEST_SET = "set"
 
 # API objects
 OBJECT_THERMOSTAT = "Thermostat"
-OBJECT_THERMOSTAT_SCHEDULE = "ThermostatSchedule"
-
-# ThermostatSchedule day that holds the Vacant (vacation) setpoints
-SCHEDULE_DAY_VACATION = "Vacation"
-
-# How often to re-read the Vacation schedule (it is only changed on the Pelican side)
-VACATION_SCHEDULE_REFRESH_SECONDS = 1800
 
 # API values for get requests - Measurements
 VALUE_TEMPERATURE = "temperature"

@@ -69,7 +69,6 @@ GET https://demo.officeclimatecontrol.net/api.cgi?username=YOUR_USERNAME&passwor
 - **sensor.pelican_thermostat_temperature**: Current temperature
 - **sensor.pelican_thermostat_humidity**: Current humidity
 - **sensor.pelican_thermostat_co2_level**: Current CO2 level
-- **sensor.pelican_thermostat_vacant_heat_setting** / **_vacant_cool_setting** / **_vacant_system_mode**: The Vacation-schedule setpoints the thermostat uses while Vacant (read from the Pelican, refreshed every 30 minutes)
 
 ## Usage
 
@@ -80,6 +79,8 @@ The main climate entity provides full thermostat control:
 - View current temperature and humidity
 - Set preset `vacant` / `occupied` to flip the Pelican's own Occupied/Vacant status. Vacant runs the
   thermostat's Vacation schedule (programmed in the Pelican app), so setbacks stay defined on the Pelican.
+  While Vacant, the climate entity's target temperatures are the Vacation setpoints. The API rejects reading
+  the schedule itself ("Get Thermostat Schedule is currently unsupported"), so they can't be shown in advance.
 
 ### Automation Examples
 
@@ -170,8 +171,6 @@ For support, please open an issue on GitHub or contact the maintainer.
 
 ### Version 1.2.0
 - `climate.set_preset_mode` now writes the Pelican `status` (Occupied/Vacant) instead of only logging
-- New sensors for the Vacant (Vacation schedule) heat/cool setpoints and system mode
-- Climate entity exposes `vacant_heat_setting` / `vacant_cool_setting` attributes
 
 ### Version 1.0.0
 - Initial release

@@ -77,25 +77,6 @@ SENSORS = [
         "unit": None,
         "icon": "mdi:calendar-clock",
     },
-    # Vacant (Vacation schedule) setpoints, applied while status is Vacant
-    {
-        "key": "vacant_heat_setting",
-        "name": "Vacant Heat Setting",
-        "unit": UnitOfTemperature.FAHRENHEIT,
-        "icon": "mdi:home-export-outline",
-    },
-    {
-        "key": "vacant_cool_setting",
-        "name": "Vacant Cool Setting",
-        "unit": UnitOfTemperature.FAHRENHEIT,
-        "icon": "mdi:home-export-outline",
-    },
-    {
-        "key": "vacant_system",
-        "name": "Vacant System Mode",
-        "unit": None,
-        "icon": "mdi:home-export-outline",
-    },
     # Fan sensor
     {
         "key": "fan",

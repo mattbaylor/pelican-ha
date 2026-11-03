@@ -209,15 +209,6 @@ class PelicanThermostatEntity(CoordinatorEntity, ClimateEntity):
         await self.coordinator.async_request_refresh()
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose the Vacant setpoints alongside the active ones."""
-        data = self.coordinator.data or {}
-        return {
-            "vacant_heat_setting": data.get("vacant_heat_setting"),
-            "vacant_cool_setting": data.get("vacant_cool_setting"),
-        }
-
-    @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current HVAC action (heating, cooling, idle, etc)."""
         data = self.coordinator.data
